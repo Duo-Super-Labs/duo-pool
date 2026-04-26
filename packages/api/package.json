@@ -1,0 +1,22 @@
+{
+  "name": "@duopool/api",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./router": "./src/router.ts"
+  },
+  "scripts": {
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@duopool/contracts": "workspace:*",
+    "@duopool/database": "workspace:*",
+    "@orpc/server": "^1.0.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3"
+  }
+}
