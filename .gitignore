@@ -1,0 +1,64 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+.yarn/install-state.gz
+
+# Bun
+bun.lockb
+.bun
+
+# Build artifacts
+dist/
+build/
+out/
+.next/
+.turbo/
+.vercel/
+*.tsbuildinfo
+next-env.d.ts
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment variables
+.env
+.env*.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Drizzle
+drizzle/.snapshot/
+.drizzle/
+
+# Postgres data (Docker volume binds)
+.postgres-data/
+postgres-data/
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.example.json
+*.swp
+*.swo
+Thumbs.db
+
+# Test artifacts
+coverage/
+.nyc_output/
+playwright-report/
+test-results/
+
+# Duo pipeline (kept):
+# .duo/ — DO NOT ignore; commit plan.md, tasks.md, refine.md
+# .claude/knowledge/decisions/ — DO NOT ignore; commit ADRs
+
+# Local Claude settings (sensitive permissions per dev)
+.claude/settings.local.json
