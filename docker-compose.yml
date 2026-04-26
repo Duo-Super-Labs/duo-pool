@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: duopool-postgres
+    restart: unless-stopped
+    ports:
+      - "5434:5432"
+    environment:
+      POSTGRES_USER: duopool
+      POSTGRES_PASSWORD: duopool
+      POSTGRES_DB: duopool
+    volumes:
+      - duopool-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U duopool -d duopool"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  duopool-pgdata:
