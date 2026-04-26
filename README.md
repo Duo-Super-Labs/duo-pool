@@ -14,7 +14,7 @@ Monorepo Bun workspaces + Turborepo, inspirado no starter `duo-admin`.
 
 | Camada | Package |
 |---|---|
-| Frontend | `apps/web` (Next.js 15 + shadcn + TanStack Query) |
+| Frontend | `apps/web` (Next.js 16 + shadcn + TanStack Query) |
 | oRPC contracts (frontend-importável) | `packages/contracts` |
 | oRPC procedures | `packages/api` |
 | Drizzle schema + drizzle-zod + queries | `packages/database` |
