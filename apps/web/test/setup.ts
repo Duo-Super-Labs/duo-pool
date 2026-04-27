@@ -6,7 +6,9 @@ import { GlobalRegistrator } from "@happy-dom/global-registrator";
 import { cleanup } from "@testing-library/react";
 import "@testing-library/jest-dom";
 
-GlobalRegistrator.register();
+// Pin window.location to a real http origin so any direct fetch in tests
+// (e.g. against MSW handlers in @duopool/mocks) is treated as same-origin.
+GlobalRegistrator.register({ url: "http://localhost:3000" });
 
 afterEach(() => {
   cleanup();

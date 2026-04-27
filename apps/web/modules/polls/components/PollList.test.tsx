@@ -1,28 +1,32 @@
 import { describe, expect, mock, test } from "bun:test";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render } from "@testing-library/react";
+import {
+  buildPoll,
+  buildPollWithOptions,
+  resetFixtureIds,
+} from "@duopool/mocks";
 import type { ReactNode } from "react";
 
-// Mock the orpc client BEFORE importing the component so the hook in api.ts
-// resolves to our test double.
+// Mock the orpc client BEFORE importing the component. We use mock.module
+// here (not MSW) because @orpc/client/fetch doesn't go through MSW's patched
+// undici fetch in the bun + happy-dom environment. MSW handlers from
+// @duopool/mocks ARE useful for direct-fetch integration tests
+// (see packages/mocks/src/handlers.test.ts) and could power apps/worker or
+// future SSR tests where the request layer is plain fetch.
+resetFixtureIds();
+const seedPolls = [
+  buildPollWithOptions({ slug: "anime", question: "Best anime?" }),
+  buildPollWithOptions({ slug: "dev", question: "Best dev?" }),
+];
+
 mock.module("@/lib/orpc-client", () => ({
   orpc: {
     polls: {
       list: () =>
-        Promise.resolve([
-          {
-            id: "uuid-1",
-            slug: "anime",
-            question: "Best anime?",
-            createdAt: new Date(),
-          },
-          {
-            id: "uuid-2",
-            slug: "dev",
-            question: "Best dev?",
-            createdAt: new Date(),
-          },
-        ]),
+        Promise.resolve(
+          seedPolls.map((p) => buildPoll({ id: p.id, slug: p.slug, question: p.question })),
+        ),
     },
   },
 }));

@@ -6,6 +6,9 @@ import type { ContractRouterClient } from "@orpc/contract";
 // Base URL for RPC endpoint. In RSC the client is called from server context,
 // so we resolve to absolute URL when running on the server.
 function getRpcUrl() {
+  // In RSC the client is called from server context, so we resolve to an
+  // absolute URL when running on the server. In the browser we use a
+  // relative path so the request goes to the same origin.
   if (typeof window !== "undefined") {
     return "/api/rpc";
   }
