@@ -24,7 +24,9 @@ export async function getPollBySlug(db: Database, slug: string) {
   const poll = await db.query.polls.findFirst({
     where: eq(polls.slug, slug),
   });
-  if (!poll) return null;
+  if (!poll) {
+    return null;
+  }
 
   const options = await db
     .select()
@@ -39,7 +41,9 @@ export async function getResults(db: Database, slug: string) {
   const poll = await db.query.polls.findFirst({
     where: eq(polls.slug, slug),
   });
-  if (!poll) return null;
+  if (!poll) {
+    return null;
+  }
 
   const rows = await db
     .select({

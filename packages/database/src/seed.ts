@@ -15,12 +15,7 @@ const seedPolls = [
   {
     slug: "melhor-dev-fictio",
     question: "Qual personagem fictício seria o melhor dev?",
-    options: [
-      "Tony Stark",
-      "Hermione Granger",
-      "Light Yagami",
-      "Walter White",
-    ],
+    options: ["Tony Stark", "Hermione Granger", "Light Yagami", "Walter White"],
   },
   {
     slug: "vibecoding-vs-eng-contexto",

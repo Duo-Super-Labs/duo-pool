@@ -12,7 +12,9 @@ async function handle(request: Request) {
     prefix: "/api/rpc",
     context: {},
   });
-  return result.matched ? result.response : new Response("Not Found", { status: 404 });
+  return result.matched
+    ? result.response
+    : new Response("Not Found", { status: 404 });
 }
 
 export const GET = handle;

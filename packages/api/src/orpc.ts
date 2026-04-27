@@ -1,5 +1,5 @@
-import { implement } from "@orpc/server";
 import { contract } from "@duopool/contracts";
+import { implement } from "@orpc/server";
 
 // `pub` is the implementation builder bound to our contract. Every procedure
 // in this app is built from `pub` (no auth/tenant/permission middleware in

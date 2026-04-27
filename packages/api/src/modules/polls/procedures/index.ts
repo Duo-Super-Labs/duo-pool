@@ -1,5 +1,5 @@
-export { listProc } from "./list.ts";
 export { getProc } from "./get.ts";
+export { listProc } from "./list.ts";
 export { resultsProc } from "./results.ts";
 
 // ⚠️ voteProc is RESERVED FOR LIVE DEMO — see CLAUDE.md.

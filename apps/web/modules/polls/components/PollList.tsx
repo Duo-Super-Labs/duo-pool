@@ -1,13 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { usePolls } from "../api";
 import {
   Card,
   CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { usePolls } from "../api";
 
 export function PollList() {
   const { data, isLoading, error } = usePolls();

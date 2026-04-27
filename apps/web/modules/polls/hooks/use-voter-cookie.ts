@@ -6,7 +6,9 @@ const COOKIE_NAME = "dp_voter";
 const ONE_YEAR_SECONDS = 60 * 60 * 24 * 365;
 
 function readCookie(): string | null {
-  if (typeof document === "undefined") return null;
+  if (typeof document === "undefined") {
+    return null;
+  }
   const match = document.cookie
     .split("; ")
     .find((row) => row.startsWith(`${COOKIE_NAME}=`));
@@ -14,6 +16,7 @@ function readCookie(): string | null {
 }
 
 function writeCookie(value: string) {
+  // biome-ignore lint/suspicious/noDocumentCookie: cookie IS the voter id transport — atomic 1-vote-per-device invariant lives here
   document.cookie = `${COOKIE_NAME}=${encodeURIComponent(value)}; max-age=${ONE_YEAR_SECONDS}; path=/; samesite=lax`;
 }
 

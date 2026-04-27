@@ -1,5 +1,5 @@
-import { PollPage } from "@/modules/polls/components/PollPage";
 import Link from "next/link";
+import { PollPage } from "@/modules/polls/components/PollPage";
 
 interface PageProps {
   params: Promise<{ slug: string }>;
