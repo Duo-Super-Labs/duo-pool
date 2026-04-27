@@ -8,7 +8,8 @@
     "./polls": "./src/polls.ts"
   },
   "scripts": {
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "test": "bun test"
   },
   "dependencies": {
     "@orpc/contract": "^1.0.0",

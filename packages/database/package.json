@@ -11,8 +11,11 @@
   },
   "scripts": {
     "type-check": "tsc --noEmit",
+    "test": "bun --env-file=../../.env.test bun:test",
+    "bun:test": "bun test",
     "db:generate": "bun --env-file=../../.env.local --bun drizzle-kit generate",
     "db:migrate": "bun --env-file=../../.env.local src/migrate.ts",
+    "db:migrate:test": "bun --env-file=../../.env.test src/migrate.ts",
     "db:seed": "bun --env-file=../../.env.local src/seed.ts",
     "db:studio": "bun --env-file=../../.env.local --bun drizzle-kit studio",
     "db:push": "bun --env-file=../../.env.local --bun drizzle-kit push"

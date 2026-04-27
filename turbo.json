@@ -23,6 +23,9 @@
     "lint": {
       "outputs": []
     },
+    "lint:package": {
+      "outputs": []
+    },
     "clean": {
       "cache": false
     },

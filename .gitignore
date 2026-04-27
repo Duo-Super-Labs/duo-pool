@@ -45,7 +45,7 @@ postgres-data/
 .idea/
 .vscode/*
 !.vscode/extensions.json
-!.vscode/settings.example.json
+!.vscode/settings.json
 *.swp
 *.swo
 Thumbs.db
