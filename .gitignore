@@ -62,3 +62,6 @@ test-results/
 
 # Local Claude settings (sensitive permissions per dev)
 .claude/settings.local.json
+
+# Brainstorming visual companion artifacts
+.superpowers/
