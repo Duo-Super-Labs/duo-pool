@@ -1,14 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/modules/ui/button";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
+} from "@/modules/ui/card";
 import { usePoll } from "../api";
 import { useVoterCookie } from "../hooks/use-voter-cookie";
 import { ResultsBar } from "./ResultsBar";

@@ -6,7 +6,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
+} from "@/modules/ui/card";
 import { usePolls } from "../api";
 
 export function PollList() {
@@ -41,16 +41,19 @@ export function PollList() {
 
   return (
     <div className="grid gap-4 sm:grid-cols-2">
-      {data.map((poll) => (
-        <Link key={poll.id} href={`/poll/${poll.slug}`} className="block">
-          <Card className="hover:border-primary/40 transition-colors h-full">
-            <CardHeader>
-              <CardTitle>{poll.question}</CardTitle>
-              <CardDescription>/{poll.slug}</CardDescription>
-            </CardHeader>
-          </Card>
-        </Link>
-      ))}
+      {data.map((poll) => {
+        console.log({ poll });
+        return (
+          <Link key={poll.id} href={`/poll/${poll.slug}`} className="block">
+            <Card className="hover:border-primary/40 transition-colors h-full">
+              <CardHeader>
+                <CardTitle>{poll.question}</CardTitle>
+                <CardDescription>/{poll.slug}</CardDescription>
+              </CardHeader>
+            </Card>
+          </Link>
+        );
+      })}
     </div>
   );
 }
