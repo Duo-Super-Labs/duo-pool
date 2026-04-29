@@ -1,13 +1,14 @@
 # Tasks — `polls.vote` feature
 
-**Source:** `.duo/plan.md` (refined)
-**Total:** 6 tasks. Sequential — earlier layers are dependencies for later ones, per ADR-001 (5-Layer Data Flow).
+**Source:** `.duo/plan.md` (rehearsal pass on `rehearsal/live-demo-vote`)
+**Total:** 6 tasks. Strictly sequential — earlier layers gate later ones (ADR-001 5-Layer Data Flow). Each task lists the AC IDs it satisfies; `bun verify` is the gate after every task.
 
 ---
 
-## T01 — L3: implement `castVote()` in `packages/database/src/query/polls.ts`
+## T01 — L3: implement `castVote()`
 
 **File:** `packages/database/src/query/polls.ts`
+**Acceptance:** AC-B1, AC-B2, AC-B3, AC-B4
 
 Add an exported async function:
 
@@ -15,25 +16,38 @@ Add an exported async function:
 export async function castVote(
   db: Database,
   input: { pollId: string; pollOptionId: string; voterCookie: string },
-): Promise<{ ok: true } | { alreadyVoted: true }>
+): Promise<{ ok: true } | { alreadyVoted: true }> {
+  try {
+    await db.insert(votes).values({
+      pollId: input.pollId,
+      pollOptionId: input.pollOptionId,
+      voterCookie: input.voterCookie,
+    });
+    return { ok: true };
+  } catch (err) {
+    if ((err as { code?: string }).code === "23505") {
+      return { alreadyVoted: true };
+    }
+    throw err;
+  }
+}
 ```
 
-Behavior:
-1. `db.insert(votes).values({...input}).returning()`.
-2. Wrap in `try / catch`. On Postgres error code `23505` (`unique_violation`), return `{ alreadyVoted: true }`. Re-throw anything else.
-3. On success, return `{ ok: true }`.
+**Implementation rules:**
+- Match the style of existing exports in this file (`listPolls`, `getPollBySlug`, `getResults`, `hasVoted`).
+- Postgres error code `23505` is `unique_violation`. The `pg` driver surfaces it as `err.code`.
+- Do NOT pre-check for existing votes. The race-free path is `INSERT` + catch.
 
-Reference: existing functions in this file (`listPolls`, `getPollBySlug`, `getResults`) for style. The error code check can use `pg`'s typed error: `(err as { code?: string }).code === "23505"`.
-
-**Acceptance:** `bun --filter @duopool/database test` runs all 11 cases, with the 4 castVote cases passing instead of skipping.
+**How to verify:** `bun --filter @duopool/database test`. The 4 cases in `polls.castVote.test.ts` flip from skipped → passing as soon as `typeof castVote === "function"` (the test file's runtime guard).
 
 ---
 
-## T02 — L4: add `pollsContract.vote` in `packages/contracts/src/polls.ts`
+## T02 — L4: add `pollsContract.vote`
 
 **File:** `packages/contracts/src/polls.ts`
+**Acceptance:** AC-B5
 
-Add to the `pollsContract` object:
+In the `pollsContract` object, replace the commented-out `vote:` block with:
 
 ```ts
 vote: oc
@@ -49,15 +63,18 @@ vote: oc
   ])),
 ```
 
-**Acceptance:** Update `packages/contracts/src/polls.test.ts` so it asserts `pollsContract.vote` exists (remove the "does NOT expose vote" test, replace with positive assertion). All 3 contract tests pass.
+**Test update:** in `packages/contracts/src/polls.test.ts`, replace the negative `vote` assertion:
+- BEFORE: `expect("vote" in pollsContract).toBe(false);`
+- AFTER: `expect(pollsContract.vote).toBeDefined();`
+
+**How to verify:** `bun --filter @duopool/contracts test` — both cases (list/get/results/hasVoted shape + vote exists) pass.
 
 ---
 
-## T03 — L5: create `packages/api/src/modules/polls/procedures/vote.ts`
+## T03 — L5: create `voteProc`
 
 **File NEW:** `packages/api/src/modules/polls/procedures/vote.ts`
-
-Implements the procedure:
+**Acceptance:** AC-B7
 
 ```ts
 import { db } from "@duopool/database";
@@ -78,71 +95,98 @@ export const voteProc = pub.polls.vote.handler(async ({ input }) => {
   });
 
   return "ok" in result
-    ? { status: "ok" as const }
-    : { status: "alreadyVoted" as const };
+    ? ({ status: "ok" } as const)
+    : ({ status: "alreadyVoted" } as const);
 });
 ```
 
-Also re-export from `packages/api/src/modules/polls/procedures/index.ts`.
+**Re-export:** add `export { voteProc } from "./vote.ts";` to `packages/api/src/modules/polls/procedures/index.ts`.
+
+**No new test file.** AC-B7 is covered transitively by router shape (AC-B6) plus L3 cases (AC-B1..B4).
 
 ---
 
-## T04 — L5 router: wire `vote: voteProc` in `packages/api/src/router.ts`
+## T04 — L5 router: wire `vote: voteProc`
 
 **File:** `packages/api/src/router.ts`
+**Acceptance:** AC-B6
 
-Add `vote: voteProc` to the `polls` object. Update the smoke test in `packages/api/src/router.test.ts` to assert `router.polls.vote` exists (replace the negative assertion).
+Add `vote: voteProc` to the `polls` block (and the comment about "When polls.vote is implemented" can be removed since it now is).
+
+**Test update:** in `packages/api/src/router.test.ts`:
+- The first test already lists `polls.vote` would need adding — change the assertion from "exposes polls.list / get / results / hasVoted" to also include `expect(router.polls.vote).toBeDefined();`.
+- Replace the negative test "does NOT expose polls.vote — reserved for live demo" with a positive smoke or simply delete it (router.polls.vote is now part of the contract).
+
+**How to verify:** `bun --filter @duopool/api test`.
 
 ---
 
-## T05 — Frontend api: `useVote()` in `apps/web/modules/polls/api.ts`
+## T05 — Frontend api: replace `useVote()` stub
 
 **File:** `apps/web/modules/polls/api.ts`
+**Acceptance:** AC-F1, AC-F2
 
-Add a TanStack Query mutation hook. Invalidation lives HERE (per duo-admin convention).
+Edits:
+
+1. **Remove** the `VOTE_NOT_IMPLEMENTED_MESSAGE` export (this is the runtime guard for `VoteScreen.vote.test.tsx` — its absence flips the test from `describe.skip` to `describe`).
+2. **Replace** the `useVote()` body. The current stub throws; the live version takes a `slug` (so it can call the route correctly) and resolves with the discriminated payload:
 
 ```ts
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-
 export function useVote(slug: string | undefined) {
-  const qc = useQueryClient();
+  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (input: { pollOptionId: string; voterCookie: string }) =>
       orpc.polls.vote({ slug: slug!, ...input }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["polls", "results", slug] });
+      queryClient.invalidateQueries({ queryKey: ["polls", "results", slug] });
+      queryClient.invalidateQueries({ queryKey: ["polls", "hasVoted", slug] });
     },
   });
 }
 ```
 
----
+3. **Update the comment block** at the top of the file: drop the "RESERVED LIVE-DEMO SLOT" warning since the slot is now filled.
 
-## T06 — Frontend UI: wire button onClick in `PollPage.tsx`
-
-**File:** `apps/web/modules/polls/components/PollPage.tsx`
-
-- Replace the placeholder `onVote` and `voteEnabled = false` with a call to `useVote(slug)`.
-- On click, `mutateAsync({ pollOptionId: selected, voterCookie: voterId })`.
-- On success of result `{ status: "alreadyVoted" }`, surface a small UI hint ("Voto já registrado.") in `PollPage` state.
-- Disable the button while pending and after a successful vote.
-
-**Acceptance:** `bun verify` exits 0. Manual smoke: vote on `/poll/vibecoding-vs-eng-contexto`, results update within 2s, second vote shows alreadyVoted state.
+**Note for the agent:** `VoteScreen` will need a tiny call-site change in T06 to pass `slug` to `useVote(slug)` and `voterCookie` to `mutateAsync`. Don't make that change here — keep the diff scoped.
 
 ---
 
-## Quality gate (final)
+## T06 — Frontend UI: handle `alreadyVoted` + lock after commit
 
-After all 6 tasks complete:
+**File:** `apps/web/modules/polls/components/VoteScreen.tsx`
+**Acceptance:** AC-F3, AC-F4, AC-F5
 
-```
+Changes:
+
+1. Call `useVote(poll.slug)` instead of `useVote()`.
+2. Pass `voterCookie: voterId` from `useVoterCookie()` to `mutateAsync` along with `pollOptionId`. Drop `pollId` from the input (the procedure resolves slug→pollId server-side).
+3. After `await vote.mutateAsync(...)`, branch on `result.status`:
+   - `"ok"` → `router.push(\`/poll/\${poll.slug}/result\`)`
+   - `"alreadyVoted"` → `setMessage({ kind: "already-voted", text: "Voto já registrado." })` and DO NOT navigate
+4. Add `"already-voted"` to the `MessageState["kind"]` union and to the className branch (use `text-sm text-muted-foreground` like demo-pending — informational, not destructive).
+5. After ANY successful `mutateAsync` (status ok OR alreadyVoted), set a local `committed = true` ref and pass `disabled={disabled || committed}` to every `<HoldButton>`. This satisfies AC-F5: no double commits.
+
+**Existing `demo-pending` branch** can be removed (it's only reachable when the stub is in place; T05 removes the stub). Leave it for one commit if you want a safety net, but the AC tests don't require it.
+
+**How to verify:** `bun --filter @duopool/web test` — `VoteScreen.test.tsx` (mock-based) still passes; `VoteScreen.vote.test.tsx` (runtime-skipped pre-T05) now activates and all 5 cases pass.
+
+---
+
+## Quality gate
+
+Run after EACH task and at the end:
+
+```bash
 bun verify
-# expected:
-#   @duopool/database    7 + 4 castVote pass (no skips)
-#   @duopool/contracts   3 pass (with vote assertion)
-#   @duopool/api         2 pass (router exposes vote)
-#   @duopool/web         2 pass
-#   type-check + lint    green everywhere
 ```
 
-Then commit and tag `step-4-post-vote`. The talk recovers from this tag if anything breaks live.
+Expected final state:
+
+- `@duopool/database` — 11 + 4 castVote pass (no skips)
+- `@duopool/contracts` — 2 pass (pollsContract.vote present, vote NOT-exposed assertion replaced)
+- `@duopool/api` — 2 pass (router.polls.vote wired)
+- `@duopool/web` — 8 + 5 vote pass (VoteScreen.test.tsx + VoteScreen.vote.test.tsx)
+- `@duopool/motion`, `@duopool/mocks`, `@duopool/test-config` unchanged
+- type-check + lint green everywhere
+
+After AC-Q1 passes, commit with a message like `feat(polls): implement vote (live demo, end-to-end)` and tag `step-4-post-vote` for talk recovery.
