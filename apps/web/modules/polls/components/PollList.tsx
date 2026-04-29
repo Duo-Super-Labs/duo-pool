@@ -14,11 +14,11 @@ export function PollList() {
 
   if (isLoading) {
     return (
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-6 sm:grid-cols-2">
         {[1, 2, 3].map((i) => (
           <div
             key={i}
-            className="h-32 rounded-xl border bg-muted/30 animate-pulse"
+            className="h-36 rounded-xl border bg-muted/30 animate-pulse"
           />
         ))}
       </div>
@@ -40,20 +40,23 @@ export function PollList() {
   }
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2">
-      {data.map((poll) => {
-        console.log({ poll });
-        return (
-          <Link key={poll.id} href={`/poll/${poll.slug}`} className="block">
-            <Card className="hover:border-primary/40 transition-colors h-full">
-              <CardHeader>
-                <CardTitle>{poll.question}</CardTitle>
-                <CardDescription>/{poll.slug}</CardDescription>
-              </CardHeader>
-            </Card>
-          </Link>
-        );
-      })}
+    <div className="grid gap-6 sm:grid-cols-2">
+      {data.map((poll) => (
+        <Link
+          key={poll.id}
+          href={`/poll/${poll.slug}`}
+          className="block h-full"
+        >
+          <Card className="h-full transition-colors hover:border-primary/40">
+            <CardHeader className="space-y-3 p-7">
+              <CardTitle className="text-lg leading-snug">
+                {poll.question}
+              </CardTitle>
+              <CardDescription>/{poll.slug}</CardDescription>
+            </CardHeader>
+          </Card>
+        </Link>
+      ))}
     </div>
   );
 }
