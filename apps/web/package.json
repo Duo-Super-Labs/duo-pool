@@ -15,6 +15,7 @@
     "@duopool/api": "workspace:*",
     "@duopool/contracts": "workspace:*",
     "@duopool/database": "workspace:*",
+    "@duopool/motion": "workspace:*",
     "@orpc/client": "^1.0.0",
     "@orpc/contract": "^1.0.0",
     "@orpc/server": "^1.0.0",
