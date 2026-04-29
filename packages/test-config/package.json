@@ -1,0 +1,50 @@
+{
+  "name": "@duopool/test-config",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./frontend": "./src/frontend/index.ts",
+    "./frontend/setup": "./src/frontend/setup.ts",
+    "./msw": "./src/msw/index.ts",
+    "./backend": "./src/backend/index.ts",
+    "./backend/setup": "./src/backend/setup.ts"
+  },
+  "scripts": {
+    "type-check": "tsc --noEmit",
+    "lint": "biome lint .",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@duopool/mocks": "workspace:*"
+  },
+  "peerDependencies": {
+    "@happy-dom/global-registrator": "^15",
+    "@tanstack/react-query": "^5",
+    "@testing-library/jest-dom": "^6",
+    "@testing-library/react": "^16",
+    "msw": "^2",
+    "react": "^19",
+    "react-dom": "^19"
+  },
+  "peerDependenciesMeta": {
+    "@happy-dom/global-registrator": { "optional": true },
+    "@testing-library/jest-dom": { "optional": true },
+    "@testing-library/react": { "optional": true },
+    "@tanstack/react-query": { "optional": true },
+    "react": { "optional": true },
+    "react-dom": { "optional": true }
+  },
+  "devDependencies": {
+    "@happy-dom/global-registrator": "^15.11.7",
+    "@tanstack/react-query": "^5.62.7",
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.1.0",
+    "@types/react": "^19",
+    "msw": "^2.6.8",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "typescript": "^5.6.3"
+  }
+}

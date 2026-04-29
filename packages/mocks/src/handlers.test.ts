@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, test } from "bun:test";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from "bun:test";
 import {
   buildPollWithOptions,
   buildResults,
@@ -9,9 +9,19 @@ import {
 import { server } from "./node.ts";
 
 describe("@duopool/mocks — MSW handlers", () => {
-  // Use the same lifecycle as consumers so this test verifies the wiring works.
-  beforeEach(() => {
+  // Lifecycle codified locally so this self-test stays leaf-level (mocks
+  // cannot depend on @duopool/test-config without creating a workspace cycle).
+  beforeAll(() => {
     server.listen({ onUnhandledRequest: "error" });
+  });
+  afterEach(() => {
+    server.resetHandlers();
+  });
+  afterAll(() => {
+    server.close();
+  });
+
+  beforeEach(() => {
     resetFixtureIds();
     resetMockState();
   });
@@ -29,8 +39,6 @@ describe("@duopool/mocks — MSW handlers", () => {
     const data = (await res.json()) as { json: unknown[] };
     expect(data.json).toHaveLength(1);
     expect((data.json[0] as { slug: string }).slug).toBe("anime");
-
-    server.close();
   });
 
   test("POST /api/rpc/polls/get returns null for missing slug", async () => {
@@ -42,8 +50,6 @@ describe("@duopool/mocks — MSW handlers", () => {
 
     const data = (await res.json()) as { json: unknown };
     expect(data.json).toBeNull();
-
-    server.close();
   });
 
   test("polls.vote returns alreadyVoted on second call from same cookie", async () => {
@@ -66,8 +72,6 @@ describe("@duopool/mocks — MSW handlers", () => {
 
     expect(first.json.status).toBe("ok");
     expect(second.json.status).toBe("alreadyVoted");
-
-    server.close();
   });
 
   test("buildResults aggregates percentages correctly", () => {

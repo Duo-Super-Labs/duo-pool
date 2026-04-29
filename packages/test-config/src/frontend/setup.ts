@@ -1,5 +1,7 @@
 // bun test preload — registers @testing-library/jest-dom matchers and
-// installs happy-dom as the global DOM. Loaded via apps/web/bunfig.toml.
+// installs happy-dom as the global DOM. Wired via `bunfig.toml`:
+//   [test]
+//   preload = ["@duopool/test-config/frontend/setup"]
 
 import { afterEach } from "bun:test";
 import { GlobalRegistrator } from "@happy-dom/global-registrator";

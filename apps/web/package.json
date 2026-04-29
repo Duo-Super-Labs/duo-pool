@@ -32,6 +32,7 @@
   },
   "devDependencies": {
     "@duopool/mocks": "workspace:*",
+    "@duopool/test-config": "workspace:*",
     "@happy-dom/global-registrator": "^15.11.7",
     "msw": "^2.6.8",
     "@tailwindcss/postcss": "^4",
