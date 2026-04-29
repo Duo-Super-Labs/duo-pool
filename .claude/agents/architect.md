@@ -188,7 +188,7 @@ Watch for these architectural anti-patterns:
 Example architecture for an AI-powered SaaS platform:
 
 ### Current Architecture
-- **Frontend**: Next.js 15 (Vercel/Cloud Run)
+- **Frontend**: Next.js 16 (Vercel/Cloud Run) — NOT Next 15 (CVE-2025-29927)
 - **Backend**: FastAPI or Express (Cloud Run/Railway)
 - **Database**: PostgreSQL (Supabase)
 - **Cache**: Redis (Upstash/Railway)

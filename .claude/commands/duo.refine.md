@@ -377,7 +377,7 @@ DATE: [YYYY-MM-DD]
 
 ### Alterações Aplicadas
 - T003 e T004 reordenados (dependência de import)
-- T010 [test] adicionado: empty state para FilterSheet
+- T010 [test] adicionado: empty state para PollList (sem polls cadastradas)
 - T011 [impl] adicionado: empty state handling
 - T009 removido: fora de escopo (confirmado Q2)
 ```
