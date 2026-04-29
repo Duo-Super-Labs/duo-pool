@@ -91,6 +91,28 @@ export async function hasVoted(
   return rows.length > 0;
 }
 
+/**
+ * Returns the `pollOptionId` this voter picked on a given poll, or `null`
+ * if they have not voted yet. Used by the result page to render
+ * "✓ Você votou X" without exposing extra data via the public API.
+ */
+export async function getUserVote(
+  db: Database,
+  input: { voterId: string; pollId: string },
+): Promise<string | null> {
+  const rows = await db
+    .select({ pollOptionId: votes.pollOptionId })
+    .from(votes)
+    .where(
+      and(
+        eq(votes.voterCookie, input.voterId),
+        eq(votes.pollId, input.pollId),
+      ),
+    )
+    .limit(1);
+  return rows[0]?.pollOptionId ?? null;
+}
+
 // ⚠️ RESERVED FOR LIVE DEMO — DO NOT IMPLEMENT IN SCAFFOLD
 // export async function castVote(db: Database, input: { pollId: string; pollOptionId: string; voterCookie: string })
 //   : Promise<{ ok: true } | { alreadyVoted: true }>
