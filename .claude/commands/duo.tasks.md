@@ -72,17 +72,12 @@ Do arquivo `.duo/plan.md`, extraia:
 
 ### 1b. Carregar agente de domínio (OBRIGATÓRIO — evita exploração desnecessária do codebase)
 
-Baseado no conteúdo do plano, detecte e leia o agente de domínio relevante com Read:
+Em duo-pool não há specialists de domínio. As convenções vivem em `CLAUDE.md` e ADRs em `.claude/knowledge/decisions/`.
 
-| Se o plano menciona | Ler |
-|---|---|
-| listing, table, filter, DataTable, FilterSheet | `agents/engineering/listing-specialist.md` |
-| CreateSheet, EditSheet, FormFields, useForm, form, mutation | `agents/engineering/form-specialist.md` |
-| Figma, design-to-code, theme.css | `agents/engineering/figma-specialist.md` |
-| api.ts, useQuery, useMutation, SDK gerado | `agents/engineering/sdk-specialist.md` |
-| Qualquer feature com componentes | `agents/engineering/frontend-architect.md` |
-
-**O agente de domínio contém:** caminhos reais de arquivos gold-standard, padrões exatos de implementação, imports corretos, e ordem de tarefas para o domínio. **Use este conteúdo diretamente** para gerar as tarefas — não faça Glob/Grep extensivo para "descobrir" padrões que já estão documentados no agente.
+Para gerar tarefas, leia:
+- `CLAUDE.md` — 5-Layer Data Flow, Frontend Rules, Module Architecture, NEVER DO list
+- ADRs relevantes em `.claude/knowledge/decisions/` (especialmente ADR-001 e ADR-003 pra qualquer mudança em polls)
+- Agentes em `.claude/agents/` quando o tipo da tarefa casar (`tdd-guide`, `bug-fixer`, `database-reviewer`, `security-reviewer`)
 
 Glob/Grep apenas para:
 - Confirmar se um arquivo específico já existe antes de criar
@@ -213,14 +208,14 @@ Salve em `.duo/tasks.md` na branch de trabalho:
 
 ## Finalização
 - [ ] T006 [doc] Exportar componentes no index → `caminho/index.ts`
-  - Verificação: `pnpm typecheck`
+  - Verificação: `bun turbo type-check`
 - [ ] T007 [refactor] Limpar imports não utilizados → arquivos modificados
-  - Verificação: `pnpm lint`
+  - Verificação: `bun turbo lint`
 
 ## Invariantes (rodar após cada grupo)
-- `pnpm typecheck`
-- `pnpm test` (ou scope específico)
-- `pnpm lint`
+- `bun turbo type-check`
+- `bun test` (ou scope específico)
+- `bun turbo lint`
 ```
 
 ---

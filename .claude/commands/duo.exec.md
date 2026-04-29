@@ -49,17 +49,18 @@ Prioridade (primeira que resolver):
 3. **Conversa:** Procurar issue mencionada recentemente
 4. **Nenhum:** Perguntar: "Informe o número da issue (#N)."
 
-### 0.5. Product Constraints Baseline
+### 0.5. Project Constraints Baseline
 
-Se `product/constraints.md` existe no repositório atual, leia-o **antes de executar qualquer tarefa**. Este arquivo contém constraints imutáveis definidos durante `/duo.shape`.
+Carregue `CLAUDE.md` da raiz **antes de executar qualquer tarefa**. Em duo-pool, ele é o único contrato de constraints — não há `product/constraints.md`.
 
-```bash
-[ -f product/constraints.md ] && cat product/constraints.md
-```
+Constraints imutáveis do duo-pool (extraídas do `CLAUDE.md`):
 
-**Se exists:** carregue como baseline. Os campos "Imutáveis" são sagrados — não proponha alternativas, não questione, não mude código de forma que viole. Se uma tarefa conflitar com constraint, **pare e sinalize**. Os "Overrides" vs duo-admin defaults devem ser respeitados em toda implementação.
+- **Anonymous app** — sem auth, sem tenants, sem RBAC, sem `organizationId`. Identidade do voter é apenas o cookie `dp_voter`.
+- **Stack fixa** — Next.js 16 (CVE-2025-29927: nunca Next 15), oRPC (sem Hono), Drizzle ORM, Tailwind v4, Bun.
+- **5-Layer Data Flow obrigatória** — não pular camada. Schema → drizzle-zod → query (`fn(db, input)`) → contract → procedure → frontend hook.
+- **`polls.vote` é o slot reservado pra demo ao vivo** — fora desse caso explícito, não preencher.
 
-**Se não exists:** prossiga normalmente (repo sem shape upstream).
+Se uma tarefa conflitar com qualquer constraint do `CLAUDE.md`, **pare e sinalize**. Não proponha alternativas que violem.
 
 ### 0e. Verificar Veredito do Refine (Quality Gate)
 
@@ -81,22 +82,23 @@ Se `--resume` presente nos argumentos ou se `.duo/tasks.md` já tem `[X]`:
 1. **Carregar** tarefas refinadas (output do `/duo.refine`)
 2. **Carregar** CLAUDE.md — regras ativas durante toda execução
 3. **Carregar** skills relevantes ao tipo (testing-strategy, frontend-patterns, etc.)
-4. **Detectar agente de domínio** — leia `.duo/tasks.md` e detecte qual especialista carregar como contexto para tarefas `[impl]`:
+4. **Detectar agente especializado** — para cada tarefa `[impl]` ou `[test]`, verifique se algum agente em `.claude/agents/` se aplica:
 
-   | Se as tarefas contêm | Agente de domínio |
+   | Sinais na tarefa | Agente |
    |---|---|
-   | `DataTable`, `FilterSheet`, `ListingPage`, `listing`, `filter`, `useCreateTable` | `agents/engineering/listing-specialist.md` |
-   | `CreateSheet`, `EditSheet`, `FormFields`, `useForm`, `mutateAsync` | `agents/engineering/form-specialist.md` |
-   | `figma.com`, `Figma`, `design-to-code`, `theme.css` | `agents/engineering/figma-specialist.md` |
-   | `api.ts`, `useQuery`, `useMutation`, `generated`, `SDK` | `agents/engineering/sdk-specialist.md` |
-   | `[constants]`, `[logic]`, `[hook]`, `Legado:`, `temp/LEGACY-CODE` | `agents/engineering/legacy-analyst.md` |
+   | Escrita de teste novo (`[test]` tag) | `tdd-guide` ou `test-writer` |
+   | Bug fix com reprodução conhecida | `bug-fixer` |
+   | Refactor / cleanup / dead code | `refactor-cleaner` |
+   | Mudança de schema, query, índice, migration | `database-reviewer` (revisão pós-impl) |
+   | Endpoint público / input do usuário / cookie / CSRF | `security-reviewer` (revisão pós-impl) |
 
-   Se detectado: leia o arquivo com Read e injete seu conteúdo como contexto antes de executar tarefas `[impl]` do domínio. Para tarefas `[impl]` de componentes, sempre carregar `agents/engineering/frontend-architect.md` como referência de arquitetura. Para tarefas de normalização (tags `[constants]`, `[logic]`, `[hook]`, `[component]`, `[chart]`), carregar `agents/engineering/legacy-analyst.md` como referência de tradução.
+   Use o agente via `Agent` tool com `subagent_type` correspondente quando o tipo da tarefa casar. Caso contrário, execute na sessão principal seguindo `CLAUDE.md`.
 
-5. **Detectar comandos de verificação** — leia `package.json` da raiz para determinar os comandos corretos:
+5. **Comandos de verificação fixos do duo-pool:**
    ```bash
-   # Detectar automaticamente: pnpm/bun/npm, typecheck/type-check, test, lint
-   # Usar o que está definido no scripts do package.json
+   bun verify         # turbo type-check + lint + test em paralelo (gate final)
+   bun --filter @duopool/<pkg> test    # subset de um package
+   bun test <path>    # arquivo único
    ```
 5. **Consultar Knowledge Base (errors):**
    ```bash
@@ -130,14 +132,13 @@ Se `--resume` presente nos argumentos ou se `.duo/tasks.md` já tem `[X]`:
 
 7. **Checkpoint inicial:**
    ```bash
-   echo "$(date +%Y-%m-%d-%H:%M) | exec-start:[nome] | issue:#[N] | $(git rev-parse --short HEAD)" >> .claude/checkpoints.log
+   echo "$(date +%Y-%m-%d-%H:%M) | exec-start:[nome] | $(git rev-parse --short HEAD)" >> .claude/checkpoints.log
    ```
-6. **Atualizar board:**
-   ```bash
-   gh issue edit $ISSUE_NUMBER --add-label "duo:in-dev" --remove-label "duo:planned"
-   ```
-7. **Confirmar** com o dev:
+
+8. **Confirmar** com o dev:
    > "[N] tarefas prontas. Executar? (sim / sim mas parar entre grupos / só o grupo 1)"
+
+> **Nota duo-pool:** o board do GitHub não é usado neste repo (é uma demo). Se a versão original do comando referencia `gh issue edit ... duo:in-dev`, ignore — labels e issues não fazem parte do fluxo aqui.
 
 ---
 
@@ -183,9 +184,9 @@ Para cada tarefa na sequência:
 
 **Anunciar:**
 ```
-── T003 [test] Escrever teste para FilterSheet ──────────────────
-   Arquivo: modules/audit/components/__tests__/FilterSheet.test.tsx
-   Referência: modules/admin/users/__tests__/UsersListView.test.tsx
+── T01 [test] Escrever teste para castVote() ──────────────────
+   Arquivo: packages/database/src/query/polls.castVote.test.ts
+   Referência: packages/database/src/query/polls.hasVoted.test.ts (gold-standard L3 query test)
 ```
 
 **Ler Contexto:**
@@ -204,7 +205,7 @@ Rodar o comando de verificação definido na tarefa:
 
 ```bash
 # Exemplo para [test] — deve FALHAR (RED)
-bun test modules/audit/components/__tests__/FilterSheet.test.tsx
+bun --filter @duopool/database test    # ativa polls.castVote.test.ts (runtime-skipped até castVote existir)
 ```
 
 **Se verificação passa:** marcar `[X]` e seguir para próxima tarefa.
@@ -243,7 +244,7 @@ Usar Agent com `isolation: "worktree"` e `run_in_background: true`.
 Atualizar o arquivo de tarefas substituindo `- [ ]` por `- [X]`:
 
 ```markdown
-- [X] T003 [test] Escrever teste para FilterSheet → `modules/audit/...`
+- [X] T01 [test] Escrever teste para castVote() → `packages/database/src/query/polls.castVote.test.ts`
 ```
 
 ---
@@ -254,9 +255,9 @@ Após completar cada grupo (setup, implementação, finalização), rodar invari
 
 ```bash
 # Usar os comandos do package.json detectados
-pnpm typecheck   # ou o equivalente
-pnpm test        # suite relevante, não tudo
-pnpm lint        # se disponível
+bun turbo type-check   # ou o equivalente
+bun test        # suite relevante, não tudo
+bun turbo lint        # se disponível
 ```
 
 **Se invariante falha:**

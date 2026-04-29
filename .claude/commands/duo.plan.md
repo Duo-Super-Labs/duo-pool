@@ -73,17 +73,18 @@ Procure o comment com marcador `<!-- duo:briefing -->`. Parse o conteúdo entre 
 
 **Se briefing encontrado:** Extraia: tipo, área de impacto, regras de execução, restrições, estimativa, referência visual, precedentes.
 
-### 0.5. Product Constraints Baseline
+### 0.5. Project Constraints Baseline
 
-Se `product/constraints.md` existe no repositório atual, leia-o **antes de qualquer planejamento**. Este arquivo contém constraints imutáveis definidos durante `/duo.shape`.
+Carregue `CLAUDE.md` da raiz **antes de qualquer planejamento**. Em duo-pool ele é o único contrato de constraints — não há `product/constraints.md`.
 
-```bash
-[ -f product/constraints.md ] && cat product/constraints.md
-```
+Constraints imutáveis (extraídas do `CLAUDE.md`):
 
-**Se exists:** carregue como baseline. Os campos "Imutáveis" são sagrados — não proponha alternativas. Os "Overrides" vs duo-admin defaults devem ser respeitados no plano. Se o plano conflitar com constraint, **pare e sinalize**.
+- **Anonymous app** — sem auth, sem tenants, sem RBAC, sem `organizationId`. Identidade do voter é apenas o cookie `dp_voter`.
+- **Stack fixa** — Next.js 16, oRPC (sem Hono), Drizzle ORM, Tailwind v4, Bun.
+- **5-Layer Data Flow obrigatória** — não pular camada.
+- **`polls.vote` é o slot reservado pra demo ao vivo** — fora desse caso explícito, não preencher.
 
-**Se não exists:** prossiga normalmente (repo sem shape upstream).
+Se o plano conflitar com qualquer constraint, **pare e sinalize**.
 
 ### 1b. Consultar Knowledge Base
 
@@ -136,17 +137,16 @@ O plano gerado no Passo 2 deve referenciar os findings do research quando aplic�
 
 1. **CLAUDE.md** — Releia. Foco nas seções de arquitetura, padrões de código, e "NEVER DO" relevantes à área de impacto.
 
-2. **Agente de domínio (carregar ANTES de explorar o codebase)** — baseado na área de impacto do briefing, leia o agente relevante com Read:
+2. **Agentes em `.claude/agents/` (carregar conforme o tipo da feature)**:
 
-   | Área de impacto | Ler |
+   | Tipo de feature | Agente |
    |---|---|
-   | listing, table, filter, DataTable | `agents/engineering/listing-specialist.md` |
-   | CreateSheet, EditSheet, FormFields, form, mutation | `agents/engineering/form-specialist.md` |
-   | Figma, design, components UI | `agents/engineering/figma-specialist.md` |
-   | api.ts, queries, mutations, SDK | `agents/engineering/sdk-specialist.md` |
-   | Feature frontend (qualquer) | `agents/engineering/frontend-architect.md` |
+   | Nova feature backend (L3+L4+L5) seguindo o 5-Layer Flow | `architect` para revisão da arquitetura proposta |
+   | Mudança em schema, query, índice | `database-reviewer` para revisar pós-impl |
+   | Endpoint público que recebe input do usuário | `security-reviewer` para revisar pós-impl |
+   | Frontend novo (componente, hook, page) | revisar contra `CLAUDE.md` (Frontend Rules + Module Architecture) |
 
-   O agente de domínio contém gold-standards, caminhos reais, e padrões de implementação. **Use-o para identificar a referência no repo** sem precisar explorar o codebase extensivamente.
+   Não há specialists de domínio (listing/form/figma/sdk) em duo-pool — o app tem um único feature module (`modules/polls/`) e segue convenções definidas em `CLAUDE.md`.
 
 3. **Código-alvo** — Leia APENAS os arquivos que serão diretamente modificados (listados na área de impacto). Não explore o codebase em busca de padrões — o agente de domínio já os contém.
 
@@ -193,8 +193,8 @@ Todo critério de aceite do briefing DEVE ter pelo menos um passo correspondente
 
 ## Invariantes
 [Condições que devem ser verdadeiras após CADA passo — não só no final]
-- [ ] `pnpm typecheck` passa
-- [ ] `pnpm test` passa (ou bun test, conforme o repo)
+- [ ] `bun turbo type-check` passa
+- [ ] `bun test` passa (ou bun test, conforme o repo)
 - [ ] Nenhuma regra do CLAUDE.md violada
 - [ ] [Invariantes específicas do tipo — ex: para debt, "mesma funcionalidade"]
 

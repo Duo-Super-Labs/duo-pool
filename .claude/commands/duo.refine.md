@@ -146,7 +146,7 @@ Tarefa sem passo no plano → flag como scope creep (remover ou justificar)
 
 - Tarefa referencia arquivo que não existe e não será criado por tarefa anterior → BLOQUEANTE
 - Tarefa `[impl]` sem `[test]` correspondente antes → BLOQUEANTE
-- Verificação de tarefa usa comando que não existe no repo (ex: `bun test` num repo que usa `pnpm test`) → BLOQUEANTE
+- Verificação de tarefa usa comando que não existe no repo (ex: `bun test` num repo que usa `bun test`) → BLOQUEANTE
 - Tarefa contradiz "NEVER DO" do CLAUDE.md → BLOQUEANTE
 - Tarefa contradiz "Fora de Escopo" do plano → BLOQUEANTE
 
@@ -290,7 +290,7 @@ Verificar que o plano referencia artefatos **reais** do codebase, nao hallucinat
 | Todo diretório pai de arquivo "criar" existe | `ls -d path/to/dir/` | HIGH se nao existe |
 | Interfaces/types referenciados existem | `grep -r "export.*InterfaceName"` | HIGH se nao encontrado |
 | Imports planejados resolvem | Verificar que o modulo/pacote existe | MEDIUM se suspeito |
-| Comandos de verificacao funcionam | `pnpm typecheck --help` etc | MEDIUM se invalido |
+| Comandos de verificacao funcionam | `bun turbo type-check --help` etc | MEDIUM se invalido |
 
 Se um arquivo para "editar" nao existe, o plano esta hallucinating — CRITICAL, nao pode executar.
 

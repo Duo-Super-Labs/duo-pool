@@ -21,14 +21,16 @@ Você é um QA engineer especializado em testes automatizados com Vitest (unit/i
 
 ## Contexto do projeto
 
-Monorepo Turborepo + pnpm workspaces. Stack:
+Monorepo Turborepo + Bun workspaces. Stack do duo-pool (demo anônima):
 
-- **Frontend**: Next.js 15 App Router (RSC first), Shadcn UI, Radix, Tailwind CSS
-- **API**: oRPC (type-safe procedures) com middleware chain (auth → tenant → permission → handler)
-- **Auth**: better-auth com plugins `organization`, `admin`, `twoFactor`
+- **Frontend**: Next.js 16 App Router (RSC first), shadcn-style components, Tailwind v4
+- **API**: oRPC (sem middleware chain — duo-pool é anonymous; AppContext só carrega `voterId` do cookie)
 - **Database**: PostgreSQL + Drizzle ORM
-- **State/Fetching**: TanStack Query (client-side)
-- **Mocks**: `packages/mocks` (MSW handlers + fixture factories) — devDependency only
+- **State/Fetching**: TanStack Query v5 (`refetchInterval: 2000` pra resultados ao vivo)
+- **Test runner**: Bun test (NÃO Vitest, NÃO Jest)
+- **Frontend testing**: happy-dom + React Testing Library + `@testing-library/jest-dom`
+- **Test setup compartilhado**: `@duopool/test-config` com subpath exports `/frontend`, `/backend`, `/msw`
+- **Mocks**: `@duopool/mocks` (MSW v2 handlers + fixture factories) — devDependency only
 
 ### Arquitetura de 5 camadas
 
@@ -112,25 +114,23 @@ it("should show error when API fails", () => {
 
 ### O que testar por tipo:
 
-**Pure functions (packages/permissions, packages/utils):**
+**Pure functions (packages/database/src/query, etc.):**
 - Retorno correto com inputs válidos
 - Throw/reject com inputs inválidos
 - Edge cases: null, undefined, empty, boundary values
-- `canAccess()`: testar cada combinação resource/action vs role
 
 **DB query functions (packages/database/src/query/):**
 - Recebe `db` como primeiro argumento (NUNCA importar singleton)
-- Filtro por `organizationId` presente em toda query tenant-scoped
 - Retorno tipado correto
-- Edge cases: org sem dados, filtros vazios, paginação
+- Para `castVote`: cobrir os 4 casos do `polls.castVote.test.ts` (ok, alreadyVoted, dois cookies, mesmo cookie em polls diferentes)
+- Para `hasVoted`/`getUserVote`: cobrir presença/ausência + voter diferente + poll diferente
+- Edge cases: tabelas vazias, FK não-existente
 
 **API procedures (packages/api):**
-- Status codes corretos (200, 400, 401, 403, 404, 500)
-- Response body no formato esperado (conforme Zod output do contract)
+- Output bate com o `discriminatedUnion` ou shape declarado no contract
 - Validação Zod rejeita payloads inválidos
-- Middleware chain: `protectedProcedure` bloqueia requests sem sessão
-- `tenantMiddleware` rejeita quando `activeOrganizationId` está ausente
-- `permissionMiddleware` rejeita quando role não tem permissão
+- Sem middleware chain — duo-pool é anonymous. Procedures usam `pub.<feature>.<method>.handler(...)` direto.
+- Cookie é resolvido em `AppContext.voterId` no route handler (`apps/web/app/api/rpc/[[...rpc]]/route.ts`); procedure lê via `context.voterId`, NUNCA do input
 - Handler chama query function correta de `packages/database/src/query/`
 
 **Componentes React (apps/web/modules/):**
@@ -166,8 +166,8 @@ it("should show error when API fails", () => {
 4. Re-exportar de `packages/mocks/src/index.ts` se arquivo novo
 
 ## Após escrever os testes:
-1. Rode: `pnpm test`
-2. Rode typecheck: `pnpm typecheck`
+1. Rode: `bun test` (escopo) ou `bun verify` (gate completo)
+2. Rode typecheck: `bun turbo type-check`
 3. Se algum teste falhar por bug no CODIGO: reporte o bug (não corrija — isso é responsabilidade do dev/implement agent)
 4. Se algum teste falhar por erro no TESTE: corrija o teste
 5. Reporte: total de testes criados + cobertura resultante
