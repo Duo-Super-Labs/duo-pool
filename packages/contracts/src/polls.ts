@@ -44,6 +44,11 @@ export const pollsContract = {
     .input(z.object({ slug: z.string().min(1) }))
     .output(resultsSchema.nullable()),
 
+  hasVoted: oc
+    .route({ method: "GET", path: "/polls/{slug}/has-voted" })
+    .input(z.object({ slug: z.string().min(1) }))
+    .output(z.object({ voted: z.boolean() })),
+
   // ⚠️ RESERVED FOR LIVE DEMO — DO NOT IMPLEMENT IN SCAFFOLD
   // vote: oc
   //   .route({ method: "POST", path: "/polls/{slug}/vote" })

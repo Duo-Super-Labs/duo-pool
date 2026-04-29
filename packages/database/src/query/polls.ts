@@ -1,4 +1,4 @@
-import { asc, eq, sql } from "drizzle-orm";
+import { and, asc, eq, sql } from "drizzle-orm";
 import type { Database } from "../client.ts";
 import { pollOptions, polls, votes } from "../schema/polls.ts";
 
@@ -72,6 +72,23 @@ export async function getResults(db: Database, slug: string) {
       percentage: total === 0 ? 0 : Math.round((r.count / total) * 1000) / 10,
     })),
   };
+}
+
+export async function hasVoted(
+  db: Database,
+  input: { voterId: string; pollId: string },
+): Promise<boolean> {
+  const rows = await db
+    .select({ id: votes.id })
+    .from(votes)
+    .where(
+      and(
+        eq(votes.voterCookie, input.voterId),
+        eq(votes.pollId, input.pollId),
+      ),
+    )
+    .limit(1);
+  return rows.length > 0;
 }
 
 // ⚠️ RESERVED FOR LIVE DEMO — DO NOT IMPLEMENT IN SCAFFOLD
