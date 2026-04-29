@@ -22,7 +22,8 @@ Write a failing test that describes the expected behavior.
 
 ### 2. Run Test -- Verify it FAILS
 ```bash
-npm test
+bun test <path>           # single file (RED expected)
+bun --filter @duopool/<pkg> test
 ```
 
 ### 3. Write Minimal Implementation (GREEN)
@@ -35,9 +36,19 @@ Remove duplication, improve names, optimize -- tests must stay green.
 
 ### 6. Verify Coverage
 ```bash
-npm run test:coverage
-# Required: 80%+ branches, functions, lines, statements
+bun verify           # turbo type-check + lint + test (parallel) — must exit 0
 ```
+
+## duo-pool Frontend Testing Rules (mandatory)
+
+When writing frontend tests, you MUST follow these rules (codified in `CLAUDE.md`):
+
+- **Behavior, not internals.** Test what the user clicks and what they see — never component state, hook return values, or `data-*` implementation attributes.
+- **Interactions: `await userEvent.click(...)`** (not `fireEvent.click`). For pointer gestures with no userEvent equivalent (hold-to-commit, drag), `fireEvent.pointerDown/Up` is the documented escape hatch.
+- **Assertions: visual.** `toBeInTheDocument()`, `toBeEnabled()`/`toBeDisabled()`, `toHaveValue()`. NEVER class names or internal `data-*`.
+- **Mocks: MSW only.** Use `useMswServer()` from `@duopool/test-config/msw` and override per test with `server.use(http.post(...))` from `msw`. Do NOT `mock.module` the api hook — that tests the mock, not the component. The only exception is `next/navigation` (no MSW analog).
+
+When a [test] task involves the frontend, the test you write FIRST (RED) must already obey these rules. Don't ship a test that mocks the api module — rewrite it before reporting RED.
 
 ## Test Types Required
 

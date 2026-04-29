@@ -32,6 +32,36 @@ Monorepo Turborepo + Bun workspaces. Stack do duo-pool (demo anônima):
 - **Test setup compartilhado**: `@duopool/test-config` com subpath exports `/frontend`, `/backend`, `/msw`
 - **Mocks**: `@duopool/mocks` (MSW v2 handlers + fixture factories) — devDependency only
 
+## Regras de teste do frontend (OBRIGATÓRIO)
+
+Codificadas em `CLAUDE.md`. Resumo executável:
+
+1. **Comportamento do usuário, nunca interno.** Teste o que o usuário clica/digita e o que ele vê. Nunca asserte em estado de componente, retorno de hook, classe CSS, ou `data-*` implementacional.
+2. **Interações**: `await userEvent.click(...)` (NÃO `fireEvent.click`). Use `userEvent.type`, `userEvent.keyboard`, etc.
+   - **Exceção**: gestos complexos sem equivalente em userEvent (hold-to-commit, drag) usam `fireEvent.pointerDown/Up` como escape hatch documentado.
+3. **Asserts visuais**: `toBeInTheDocument()` pra "tá na tela", `toBeEnabled()`/`toBeDisabled()` pra botões, `toHaveValue()` pra inputs. NUNCA `data-message-kind`, `data-state` etc.
+4. **Mocks via MSW server**:
+   ```ts
+   import { useMswServer } from "@duopool/test-config/msw";
+   import { http, HttpResponse } from "msw";
+
+   describe("...", () => {
+     const server = useMswServer();   // listen / reset / close lifecycle
+     test("...", async () => {
+       server.use(
+         http.post("http://localhost:3000/api/rpc/polls/vote", () =>
+           HttpResponse.json({ json: { status: "ok" } }),
+         ),
+       );
+       // ... interações + asserts
+     });
+   });
+   ```
+   - **NÃO** use `mock.module("@/modules/polls/api", ...)` pra mockar hook TanStack Query — isso testa o mock, não o componente.
+   - **Exceção tolerada**: `next/navigation` `useRouter` (sem análogo MSW). Mock como proxy pra "houve navegação".
+
+5. **Quando o teste vier antes da implementação (TDD asset)**, use `describe.skip` com comentário explícito apontando qual task no `.duo/tasks.md` flipa `skip → run`. Pattern espelha `polls.castVote.test.ts` (backend, runtime-skipped via dynamic import).
+
 ### Arquitetura de 5 camadas
 
 ```

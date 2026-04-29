@@ -230,6 +230,17 @@ bun verify
 
 **TDD principle:** Tests come before (or alongside) implementation. Backend uses `bun test` against the `duopool_test` Postgres database (real DB, no mocks). Frontend uses `bun test` + happy-dom + React Testing Library + `@testing-library/jest-dom` for user-behavior tests, with MSW v2 from `@duopool/mocks` for network. Shared setup lives in `@duopool/test-config` with environment-scoped subpath exports (`/frontend`, `/frontend/setup`, `/backend`, `/backend/setup`, `/msw`) so frontend tests don't accidentally pull in `pg`/`drizzle-orm`. `apps/web/bunfig.toml` preloads `@duopool/test-config/frontend/setup`. See `.env.test`. Frontend test files live in `modules/<feature>/__tests__/` (not co-located).
 
+### Frontend Testing Rules (mandatory for all NEW tests)
+
+- **Test user-observable behavior only.** What the user clicks/types and what they see. Never internals (state, props, hook return values, internal `data-*` attributes).
+- **Queries**: prefer `getByRole`, then `getByText`/`getByLabelText`. Use `findByRole` for async content. `getByTestId` only as last resort.
+- **Interactions**: `await userEvent.click(...)` (not `fireEvent.click`). Use `userEvent.type`, `userEvent.keyboard`, etc. for the rest. **Exception**: complex pointer gestures (hold-to-commit, drag) have no clean userEvent abstraction — `fireEvent.pointerDown/Up` is the escape hatch; comment WHY.
+- **Assertions**: `toBeInTheDocument()` for "is on screen", `toBeEnabled()`/`toBeDisabled()` for buttons, `toHaveValue()` for inputs. Never assert on class names or implementation-detail `data-*` attributes.
+- **Mocks at the network boundary via MSW only.** Use `useMswServer()` from `@duopool/test-config/msw` and override per-test with `server.use(http.post(...))`. **Do NOT** `mock.module("@/modules/<feat>/api", ...)` or stub TanStack Query hooks — that tests the mock, not the component.
+- **Exception**: `next/navigation` (`useRouter`) has no MSW analog; mocking it as a proxy for navigation is acceptable when the test asserts the user was taken to a new page.
+
+Pre-existing tests written before this rule (`PollList.test.tsx`, `HoldButton.test.tsx`, `VoteScreen.test.tsx`, `ResultStage.test.tsx`, `StageView.test.tsx`) use `mock.module` for the api hook. They're grandfathered until the next refactor — but new tests MUST follow the rules above.
+
 **Test infra gotchas (learned the hard way):**
 - Schema-specific test helpers belong with the schema package (`packages/database`), not in `@duopool/test-config`. Only generic, environment-level infra goes in the shared package.
 - Don't wrap `mock.module()` in a helper that lives in a different package than the test — Bun resolves the spec at the call site, so a wrapper in `@duopool/test-config` will fail to mock a module imported from `apps/web`.

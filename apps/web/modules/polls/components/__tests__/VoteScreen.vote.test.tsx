@@ -1,22 +1,30 @@
 /**
  * ⚠️  PRE-WRITTEN TEST ASSET — RUNS AFTER THE LIVE `polls.vote` DEMO
  *
- * This file encodes the post-implementation acceptance criteria for the
- * live `/duo.exec polls.vote` run. It is gated by `describe.skip` because
- * it asserts behavior that only exists once T05 (api.ts useVote replaces
- * stub) and T06 (VoteScreen branches on result.status + locks buttons)
- * from `.duo/tasks.md` land.
+ * Encodes the post-implementation acceptance criteria for /duo.exec on
+ * polls.vote. Gated by `describe.skip` because it asserts behavior that
+ * only exists once T05 (api.ts useVote replaces stub) and T06 (VoteScreen
+ * branches on result.status + locks buttons) from `.duo/tasks.md` land.
  *
- * The final step of T06 is to flip `describe.skip` → `describe` below.
- * After that flip, all 5 cases must pass with NO other edits to this file.
+ * The final step of T06 flips `describe.skip` → `describe`. After that
+ * flip, all 3 cases must pass with NO other edits to this file.
  *
- * Mirrors the backend pattern in
- * `packages/database/src/query/polls.castVote.test.ts`.
+ * ───────────────────────────────────────────────────────────────────
+ * Conforms to the duo-pool Frontend Testing Rules (CLAUDE.md):
+ *   - User-observable behavior only — no internal state / data-* asserts
+ *   - userEvent for clicks; fireEvent.pointer{Down,Up} only for the
+ *     hold-to-commit gesture (no userEvent abstraction for sustained press)
+ *   - Visual assertions: toBeInTheDocument / toBeEnabled / toBeDisabled
+ *   - Mocks at the network boundary via MSW; only useRouter is mocked
+ *     directly because there's no MSW analog for navigation
+ * ───────────────────────────────────────────────────────────────────
  */
 
-import { describe, expect, mock, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { renderWithProviders } from "@duopool/test-config/frontend";
+import { useMswServer } from "@duopool/test-config/msw";
 import { fireEvent, waitFor } from "@testing-library/react";
+import { http, HttpResponse } from "msw";
 
 // ---- Fixtures ---------------------------------------------------------------
 
@@ -30,95 +38,65 @@ const POLL = {
   ],
 };
 
-// ---- Mocks (mutated per test via resetMocks) --------------------------------
+const VOTE_URL = "http://localhost:3000/api/rpc/polls/vote";
+const HOLD_MS = 1_000; // matches HoldButton's default holdMs
 
-type VoteResult = { status: "ok" } | { status: "alreadyVoted" };
-
-const voteState = {
-  mutateAsync: mock<
-    (input: { pollOptionId: string; voterCookie: string }) => Promise<VoteResult>
-  >(() => Promise.resolve({ status: "ok" } as const)),
-  isPending: false,
-};
+// ---- Navigation mock --------------------------------------------------------
+// useRouter has no MSW analog — mocking as a proxy for "navigation happened"
+// is the documented exception in CLAUDE.md / Frontend Testing Rules.
 
 const routerState = {
   push: mock<(path: string) => void>(() => undefined),
 };
 
-// Track invalidations triggered by useVote.onSuccess. T05 specifies that the
-// hook invalidates ["polls", "results", slug] and ["polls", "hasVoted", slug].
-const invalidatedKeys: unknown[][] = [];
-
-mock.module("@/modules/polls/api", () => ({
-  // After T05 the export `VOTE_NOT_IMPLEMENTED_MESSAGE` no longer exists, so
-  // we don't re-export it here. Tests that need the stub error message use
-  // `VoteScreen.test.tsx` (mock-based, unaffected by implementation).
-  useVote: (slug: string | undefined) => {
-    // Side-effect mock to mimic the real hook's onSuccess invalidation behavior.
-    // The real hook calls queryClient.invalidateQueries; here we record the keys.
-    return {
-      ...voteState,
-      mutateAsync: async (input: {
-        pollOptionId: string;
-        voterCookie: string;
-      }) => {
-        const result = await voteState.mutateAsync(input);
-        invalidatedKeys.push(["polls", "results", slug]);
-        invalidatedKeys.push(["polls", "hasVoted", slug]);
-        return result;
-      },
-    };
-  },
-}));
-
 mock.module("next/navigation", () => ({
   useRouter: () => routerState,
 }));
 
-// Static import AFTER mock.module so the mocked api/router are picked up.
 import { VoteScreen } from "../VoteScreen";
 
 // ---- Helpers ----------------------------------------------------------------
 
-function resetMocks() {
-  voteState.mutateAsync = mock(() => Promise.resolve({ status: "ok" } as const));
-  voteState.isPending = false;
-  routerState.push = mock(() => undefined);
-  invalidatedKeys.length = 0;
+function holdAndRelease(button: HTMLElement) {
+  // RTL's userEvent has no abstraction for sustained press, so the escape
+  // hatch fireEvent.pointerDown/Up is the documented way (CLAUDE.md).
+  fireEvent.pointerDown(button);
+  return new Promise<void>((resolve) =>
+    setTimeout(() => {
+      fireEvent.pointerUp(button);
+      resolve();
+    }, HOLD_MS + 80),
+  );
 }
-
-function wait(ms: number) {
-  return new Promise<void>((resolve) => setTimeout(resolve, ms));
-}
-
-const HOLD_MS = 1_000; // matches HoldButton's default holdMs
 
 // ---- Suite ------------------------------------------------------------------
 
-describe.skip("<VoteScreen /> — post-implementation vote behavior (live demo target)", () => {
-  test("AC-F1 + AC-F3 — on { status: 'ok' }, navigates to /poll/<slug>/result", async () => {
-    resetMocks();
+describe.skip("polls.vote — full user flow (live demo target)", () => {
+  const server = useMswServer();
+
+  beforeEach(() => {
+    routerState.push = mock(() => undefined);
+  });
+
+  afterEach(() => {
+    server.resetHandlers();
+  });
+
+  test("audience holds Vibecoding → vote registered → taken to the result page", async () => {
+    server.use(
+      http.post(VOTE_URL, () =>
+        HttpResponse.json({ json: { status: "ok" } }),
+      ),
+    );
+
     const view = renderWithProviders(<VoteScreen poll={POLL} />);
 
-    const button = view.getByRole("button", { name: "Vibecoding" });
-    fireEvent.pointerDown(button);
-    await wait(HOLD_MS + 80);
-    fireEvent.pointerUp(button);
+    const vibecoding = view.getByRole("button", { name: /vibecoding/i });
+    expect(vibecoding).toBeInTheDocument();
+    expect(vibecoding).toBeEnabled();
 
-    await waitFor(() => {
-      expect(voteState.mutateAsync).toHaveBeenCalledTimes(1);
-    });
+    await holdAndRelease(vibecoding);
 
-    // AC-F1: input shape is { pollOptionId, voterCookie } — slug is bound via
-    // useVote(slug), pollId is resolved server-side from slug.
-    expect(voteState.mutateAsync).toHaveBeenCalledWith(
-      expect.objectContaining({ pollOptionId: "opt-vibe" }),
-    );
-    const args = voteState.mutateAsync.mock.calls[0]?.[0];
-    expect(typeof args?.voterCookie).toBe("string");
-    expect(args?.voterCookie.length).toBeGreaterThan(0);
-
-    // AC-F3: navigation on { status: ok }
     await waitFor(() => {
       expect(routerState.push).toHaveBeenCalledWith(
         `/poll/${POLL.slug}/result`,
@@ -126,93 +104,43 @@ describe.skip("<VoteScreen /> — post-implementation vote behavior (live demo t
     });
   }, 5_000);
 
-  test("AC-F2 — invalidates polls.results and polls.hasVoted on success", async () => {
-    resetMocks();
-    const view = renderWithProviders(<VoteScreen poll={POLL} />);
-
-    const button = view.getByRole("button", { name: "Engenharia de Contexto" });
-    fireEvent.pointerDown(button);
-    await wait(HOLD_MS + 80);
-    fireEvent.pointerUp(button);
-
-    await waitFor(() => {
-      expect(voteState.mutateAsync).toHaveBeenCalledTimes(1);
-    });
-
-    expect(invalidatedKeys).toContainEqual(["polls", "results", POLL.slug]);
-    expect(invalidatedKeys).toContainEqual(["polls", "hasVoted", POLL.slug]);
-  }, 5_000);
-
-  test("AC-F4 — on { status: 'alreadyVoted' }, shows inline message and does NOT navigate", async () => {
-    resetMocks();
-    voteState.mutateAsync = mock(() =>
-      Promise.resolve({ status: "alreadyVoted" } as const),
+  test("audience already voted from this device → sees 'Voto já registrado' and stays on the vote page", async () => {
+    server.use(
+      http.post(VOTE_URL, () =>
+        HttpResponse.json({ json: { status: "alreadyVoted" } }),
+      ),
     );
 
     const view = renderWithProviders(<VoteScreen poll={POLL} />);
 
-    const button = view.getByRole("button", { name: "Vibecoding" });
-    fireEvent.pointerDown(button);
-    await wait(HOLD_MS + 80);
-    fireEvent.pointerUp(button);
+    const vibecoding = view.getByRole("button", { name: /vibecoding/i });
+    await holdAndRelease(vibecoding);
 
     await waitFor(() => {
-      expect(voteState.mutateAsync).toHaveBeenCalledTimes(1);
+      expect(view.getByText(/voto já registrado/i)).toBeInTheDocument();
     });
-    await wait(20); // let the resolve propagate to setState
-
-    expect(routerState.push).toHaveBeenCalledTimes(0);
-
-    const status = view.getByRole("status");
-    expect(status.getAttribute("data-message-kind")).toBe("already-voted");
-    expect(status.textContent).toMatch(/voto já registrado/i);
+    expect(routerState.push).not.toHaveBeenCalled();
   }, 5_000);
 
-  test("AC-F5 — after a committed vote, all HoldButtons are disabled", async () => {
-    resetMocks();
-    // alreadyVoted path keeps the user on the page so we can inspect the buttons.
-    voteState.mutateAsync = mock(() =>
-      Promise.resolve({ status: "alreadyVoted" } as const),
+  test("after a committed vote, every option button is disabled — no double commit", async () => {
+    server.use(
+      http.post(VOTE_URL, () =>
+        HttpResponse.json({ json: { status: "alreadyVoted" } }),
+      ),
     );
 
     const view = renderWithProviders(<VoteScreen poll={POLL} />);
 
-    const first = view.getByRole("button", { name: "Vibecoding" });
-    fireEvent.pointerDown(first);
-    await wait(HOLD_MS + 80);
-    fireEvent.pointerUp(first);
+    const vibecoding = view.getByRole("button", { name: /vibecoding/i });
+    await holdAndRelease(vibecoding);
 
     await waitFor(() => {
-      expect(voteState.mutateAsync).toHaveBeenCalledTimes(1);
+      expect(view.getByText(/voto já registrado/i)).toBeInTheDocument();
     });
-    await wait(20);
 
-    // Both buttons must now be disabled — no double commit allowed.
-    const buttons = view.getAllByRole("button");
-    for (const button of buttons) {
-      expect(button.getAttribute("aria-disabled")).toBe("true");
-    }
+    expect(view.getByRole("button", { name: /vibecoding/i })).toBeDisabled();
+    expect(
+      view.getByRole("button", { name: /engenharia de contexto/i }),
+    ).toBeDisabled();
   }, 5_000);
-
-  test("AC-F1 — useVote is called with the poll slug (so the hook can build the route input)", async () => {
-    // This is a structural assertion: when the implementation is in place, the
-    // VoteScreen must call useVote(poll.slug). We verify by mocking useVote as
-    // a spy that captures its argument.
-    resetMocks();
-
-    const calls: (string | undefined)[] = [];
-    mock.module("@/modules/polls/api", () => ({
-      useVote: (slug: string | undefined) => {
-        calls.push(slug);
-        return voteState;
-      },
-    }));
-
-    // Re-import to pick up the spy. (This is per-test scoped because Bun
-    // re-resolves on dynamic import after mock.module is updated.)
-    const { VoteScreen: Reloaded } = await import("../VoteScreen");
-    renderWithProviders(<Reloaded poll={POLL} />);
-
-    expect(calls).toContain(POLL.slug);
-  });
 });
