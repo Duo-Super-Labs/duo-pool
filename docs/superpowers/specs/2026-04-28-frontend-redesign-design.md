@@ -7,14 +7,15 @@
 
 ## Goal
 
-Lift DuoPool from the current functional-but-bare scaffold into a phone-first, two-screen demo with a dramatic fullscreen result. Add a projector-only `/stage/[slug]` route, a hold-to-commit voting ritual, and `framer-motion`-driven transitions. Visual identity (palette, typography, pop-culture theming) is deliberately deferred.
+Lift DuoPool from the current functional-but-bare scaffold into a phone-first, two-screen demo with a dramatic fullscreen result. Add a projector-only `/stage/[slug]` route, a hold-to-commit voting ritual, `framer-motion`-driven transitions, and a synthwave/cyberpunk dark theme (defaulted on; light theme available as fallback).
 
 ## Non-goals
 
 - Authentication, organizations, or user accounts (DuoPool stays anonymous; ADR-001 holds).
 - Replacing oRPC or adding Hono (CLAUDE.md `NEVER DO` constraints respected).
 - Implementing `polls.vote` (live demo slot — assumed already implemented when this work starts).
-- Visual identity / brand decisions (palette, fonts, pop-culture per-poll theming) — deferred to a follow-up brainstorm.
+- Per-poll pop-culture theming (one unified palette is shipped now; per-poll color stories deferred).
+- Dark mode toggle UI (dark is hardcoded `<html class="dark">`; toggle is post-talk).
 - Vote retraction, admin UI for poll creation, per-IP rate limiting (out of scope per `.duo/plan.md`).
 
 ## Decisions (from brainstorming)
@@ -26,7 +27,7 @@ Lift DuoPool from the current functional-but-bare scaffold into a phone-first, t
 | 3 | Result screen treatment | **Big winner stat** — 64px % of leader, runner-up as small footer |
 | 4 | Vote interaction | **Hold-to-commit ~1s ritual** — gradient fills option, vibrate on commit |
 | 5 | Returning-user behavior | **Auto-skip to result** — server-side redirect, no flash of vote UI |
-| 6 | Visual identity | **Deferred** — placeholder tokens only |
+| 6 | Visual identity | **Synthwave dark (default) + soft purple light** — full token system in OKLCH, dark hardcoded via `<html class="dark">` |
 | 7 | Implementation scope | **#3 full polish** — route-split + framer-motion + stage route + dark theme tokens |
 | 8 | Execution | **Parallel agents** — 5 agents across 2 waves in isolated worktrees |
 
@@ -110,19 +111,48 @@ packages/motion/
 | Hold progress | Local in `<HoldButton>` | `useState` + `useRef` for timer ID |
 | Current screen | URL routing (`/poll/[slug]` vs `/poll/[slug]/result`) | No global client state |
 
-### Theme tokens (placeholder, identity deferred)
+### Theme (visual identity)
 
-`apps/web/app/globals.css` additions to `:root` (and dark mode override):
+**Vibe:** synthwave/cyberpunk dark default + soft purple/teal/cyan light fallback. Dark is the "show" theme — hardcoded via `<html class="dark">` until a toggle is added post-talk.
+
+**Color system:** OKLCH throughout (perceptual lightness, wider gamut than HSL). Light and dark modes share a token vocabulary (`--background`, `--foreground`, `--primary`, `--secondary`, `--accent`, `--destructive`, `--muted`, `--border`, `--ring`, `--card`, `--popover`, `--sidebar*`, `--chart-1..5`).
+
+**Highlights (dark mode — the talk's primary look):**
+- `--background: oklch(0 0 0)` — true black
+- `--primary: oklch(0.6182 0.2788 321.6143)` — vivid magenta/pink (hold gradient leader)
+- `--secondary: oklch(0.7858 0.1553 166.4670)` — teal-green (runner-up accent)
+- `--accent: oklch(0.7786 0.1489 226.0174)` — cyan
+- Border radius `0` (sharp synthwave corners)
+- Shadow color `hsl(280 100% 50%)` with `0 0 20px 2px` glow on every elevation step (`--shadow-2xs` through `--shadow-2xl`)
+
+**Highlights (light mode — fallback for testing/post-talk):**
+- `--primary: oklch(0.5287 0.2570 302.2604)` — vivid purple
+- `--secondary: oklch(0.7858 0.1553 166.4670)` — same teal as dark
+- `--accent: oklch(0.7786 0.1489 226.0174)` — same cyan
+- Border radius `0.5rem`
+- Soft drop shadows (`hsl(0 0% 0% / 0.10)`)
+
+**Typography:**
+- Sans (light): **Inter** via `next/font/google` — variable `--font-sans-light`
+- Sans (dark): **Orbitron** via `next/font/google` — variable `--font-sans-dark` (geometric sci-fi)
+- Mono (light): **JetBrains Mono** — variable `--font-mono-light`
+- Mono (dark): **Space Mono** (weights 400, 700) — variable `--font-mono-dark`
+- Serif (both modes): **Georgia** (system font; CSS fallback only — NOT loaded via `next/font/google` because Georgia is not on Google Fonts)
+
+CSS resolves `--font-sans` and `--font-mono` to the appropriate variable based on `:root` vs `.dark`:
 
 ```css
---accent-primary: hsl(48 96% 53%);     /* gold; hold gradient leader */
---accent-secondary: hsl(217 91% 60%);  /* blue; hold gradient runner-up */
---stage-bg: hsl(0 0% 0%);              /* true black for ResultStage / StageView */
---stage-fg: hsl(0 0% 100%);
---pulse-live: hsl(142 76% 56%);        /* live badge dot */
+:root  { --font-sans: var(--font-sans-light), system-ui, sans-serif; }
+.dark  { --font-sans: var(--font-sans-dark), sans-serif; }
+:root  { --font-mono: var(--font-mono-light), monospace; }
+.dark  { --font-mono: var(--font-mono-dark), monospace; }
 ```
 
-Components reference these via `var(--token)` only — never hardcoded HSL. Swapping the identity later is a single-file edit.
+**Class-based dark mode:** `@custom-variant dark (&:is(.dark *))`. The `<html>` element gets `class="dark"` hardcoded for now (no toggle, no `prefers-color-scheme`).
+
+**Typographic refinements:** baseline `letter-spacing: var(--tracking-normal)` (`0.02em`); utilities `--tracking-tighter` through `--tracking-widest` available.
+
+Full CSS lives in `apps/web/app/globals.css` (replaces the current placeholder file). Components reference tokens via `var(--token)` only — no hardcoded colors anywhere.
 
 ## Files touched (estimate)
 
@@ -138,7 +168,8 @@ packages/motion/                                                  (new package, 
 apps/web/app/poll/[slug]/page.tsx                                 (refactor → RSC redirect)
 apps/web/app/poll/[slug]/result/page.tsx                          (new)
 apps/web/app/stage/[slug]/page.tsx                                (new)
-apps/web/app/globals.css                                          (modified — token additions)
+apps/web/app/globals.css                                          (full replacement — synthwave theme)
+apps/web/app/layout.tsx                                           (modified — load 4 fonts, set <html class="dark">)
 apps/web/modules/polls/components/HoldButton.tsx                  (new)
 apps/web/modules/polls/components/VoteScreen.tsx                  (new)
 apps/web/modules/polls/components/ResultStage.tsx                 (new)
@@ -150,7 +181,7 @@ apps/web/modules/polls/components/__tests__/StageView.test.tsx    (new)
 apps/web/modules/polls/api.ts                                     (modified — add useHasVoted)
 ```
 
-~21 files (12 new, 9 modified).
+~22 files (12 new, 10 modified).
 
 ## Test strategy
 
@@ -176,7 +207,12 @@ Wave 1 (parallel — A, B, E):
   A. Backend       packages/database, packages/contracts, packages/api
                    adds: hasVoted query/contract/procedure/router/tests
   B. Motion        new packages/motion/ (framer-motion wrapper + variants)
-  E. Theme tokens  apps/web/app/globals.css (additions only, ~10 lines)
+  E. Theme + fonts apps/web/app/globals.css (full replacement, ~150 lines OKLCH theme)
+                   apps/web/app/layout.tsx (load Inter, Orbitron, JetBrains_Mono,
+                     Space_Mono via next/font/google; set <html class="dark">)
+                   shadcn-ui components updated to consume new tokens (only if any
+                     existing component breaks); install missing components via the
+                     shadcn-ui MCP server as needed
 
 Wave 2 (parallel — C, D, depends on Wave 1 merging):
   C. Vote screen   apps/web/modules/polls/components/HoldButton.tsx, VoteScreen.tsx,
@@ -195,11 +231,13 @@ Wave 2 (parallel — C, D, depends on Wave 1 merging):
 - **Merge order:** A → B → E (any order in Wave 1) → C → D
 - **Orchestrator:** `dmux` or `devfleet` (decided in `writing-plans`)
 
-**Wall-clock estimate:** Wave 1 ~3-4h, Wave 2 ~4-5h. Total ~1 working day if no surprises.
+**Wall-clock estimate:** Wave 1 ~4-5h (Track E grew with the full theme), Wave 2 ~4-5h. Total ~1-1.5 working days.
 
 ## Dependencies
 
-- New: `framer-motion` in `packages/motion/` and `apps/web/`
+- New runtime: `framer-motion` in `packages/motion/` and `apps/web/`
+- New fonts (loaded via `next/font/google`): `Inter`, `Orbitron`, `JetBrains_Mono`, `Space_Mono`. **Do NOT** import `Georgia` from `next/font/google` (it's not a Google font; CSS `Georgia, serif` system fallback handles it).
+- Tooling: shadcn-ui MCP server for adding any missing primitives (Toast/Sonner, Dialog, etc.) at implementation time. Components installed as needed; no upfront list.
 - Existing: `next/headers` (for `cookies()`); `@duopool/mocks` (MSW); RTL + happy-dom
 - No DB migration needed — `votes` table with `UNIQUE(voter_cookie, poll_id)` already exists
 
@@ -211,13 +249,16 @@ Wave 2 (parallel — C, D, depends on Wave 1 merging):
 | RSC + cookie reading race on hot-reload | Client-side `useHasVoted` as fallback re-check; if mismatch, client navigates |
 | Framer Motion bundle size | Only imported where needed; `packages/motion/` re-exports tree-shake-friendly |
 | Worktree merges accumulate conflict in `apps/web/modules/polls/` | Strict file ownership per track (no overlap in modified files); if conflict, rebase later track |
-| Visual identity TBD blocks visual QA | Placeholder tokens look acceptable enough for staging review; full QA after identity decision |
+| Class-based dark mode regression on existing components | Track E does a smoke pass on `PollList` + `Card` + `Button` after CSS swap; any broken component is updated to use new tokens before opening PR |
+| Font flash (FOUC) on first paint | `next/font/google` is loaded server-side and inlined; `<html class="dark">` is hardcoded so no JS runs before paint to flip themes |
+| Wave 2 components depend on tokens that Wave 1 ships | Hard-gate: Wave 2 only starts once Track E PR is merged |
 
 ## Open questions (resolved before plan)
 
 None remaining for design phase. The following are explicitly deferred to follow-up specs:
 
-- Visual identity (palette, fonts, pop-culture theming per poll vs unified brand)
+- Per-poll pop-culture theming (Star Wars colors for "Sith vs Jedi", etc.) — current iteration ships one unified synthwave palette
+- Dark mode toggle UI — dark is hardcoded for now
 - E2E test infrastructure for server-side redirect
 - Home page (`/`) redesign (kept as-is for this iteration)
 - Empty / error / connection-lost states (handled inline with current toast pattern; full UX pass deferred)
