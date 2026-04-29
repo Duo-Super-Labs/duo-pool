@@ -1,4 +1,6 @@
-# DuoPool Development Guidelines
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Project Context
 
@@ -10,7 +12,7 @@
 ## Stack
 
 - **Language**: TypeScript 5.x (`strict: true`, `allowImportingTsExtensions: true`)
-- **Framework**: Next.js 16 (App Router, RSC-first, Turbopack default). **Never Next 15** (CVE-2025-29927)
+- **Framework**: Next.js 16 (App Router, RSC-first, Turbopack default). **Never Next 15** (CVE-2025-29927). Next 16 has breaking changes vs. training-data Next 14/15 — read `apps/web/AGENTS.md` and the relevant guide under `apps/web/node_modules/next/dist/docs/` before writing Next code (e.g., dynamic route `params` are async — must `await params`)
 - **Monorepo**: Turborepo + Bun workspaces
 - **Database**: PostgreSQL + Drizzle ORM (`packages/database`). Local: Docker Postgres on port 5434. Prod: Neon (same `pg` driver — only `DATABASE_URL` changes)
 - **API**: oRPC (`@orpc/contract` + `@orpc/server`) mounted at `apps/web/app/api/rpc/[[...rpc]]/route.ts` via `RPCHandler`. **No Hono** — DuoPool has no auth handler that would require it
@@ -122,11 +124,13 @@ apps/
       providers.tsx                     QueryClientProvider
       layout.tsx                        Root layout
       globals.css                       Tailwind v4 + theme tokens
-    components/ui/                      Button, Card (shadcn-style)
     lib/
       utils.ts                          cn() helper
       orpc-client.ts                    @orpc/client RPCLink → /api/rpc
     modules/polls/                      see Module Anatomy
+    modules/ui/                         shadcn-style primitives (button.tsx, card.tsx)
+    bunfig.toml                         preloads @duopool/test-config/frontend/setup
+    AGENTS.md                           Next 16 warning — read before any Next code
 
 packages/
   database/                             L1 + L2 + L3
@@ -145,6 +149,11 @@ packages/
     src/orpc.ts                         pub = implement(contract)
     src/router.ts                       router shape mirroring contract
     src/modules/polls/procedures/       list.ts, get.ts, results.ts
+  mocks/                                MSW v2 handlers + fixtures (frontend tests)
+  test-config/                          shared test setup
+    src/frontend/                       happy-dom + RTL setup
+    src/backend/                        backend bun test setup
+    src/msw/                            MSW server wiring
 ```
 
 ## Commands
@@ -157,6 +166,12 @@ bun --filter @duopool/database db:seed
 bun dev                                 Run apps/web dev server
 bun turbo type-check                    Type-check all packages in parallel
 bun turbo build                         Production build
+
+# Quality + tests
+bun verify                              type-check + lint + test (parallel) — must exit 0
+bun check                               biome check . --write (format + lint + organize imports)
+bun --filter @duopool/database test     Run a single package's tests
+bun test apps/web/modules/polls/__tests__/PollList.test.tsx   Single test file
 ```
 
 ## Frontend Rules (mirrors duo-admin)
@@ -182,8 +197,8 @@ bun turbo build                         Production build
 - Never write duplicate Zod schemas by hand — always derive from `drizzle-zod` in `packages/database/src/schema/zod.ts`
 - Never import `@duopool/api` or `@duopool/database` directly from `apps/web` components or pages — go through `apps/web/modules/<feature>/api.ts`
 - Never put `invalidateQueries` inside a component callback — it lives in `api.ts`
-- Never use `any` — use `unknown` + narrowing
-- Never use enums — `as const` maps
+- Never use `any` — use `unknown` + narrowing (enforced by Biome `noExplicitAny: error` — fails `bun verify`)
+- Never use enums — `as const` maps (Biome `useEnumInitializers` + `useAsConstAssertion: error`)
 - Never skip a layer in the 5-Layer Data Flow
 - Never call `orpc.<...>` directly inside a React component
 - Never add Hono unless we add a non-oRPC HTTP handler that needs it (we currently don't)
@@ -213,7 +228,11 @@ bun verify
 #   bun test              (test)
 ```
 
-**TDD principle:** Tests come before (or alongside) implementation. Backend uses `bun test` against the `duopool_test` Postgres database (real DB, no mocks). Frontend uses `bun test` + happy-dom + React Testing Library + `@testing-library/jest-dom` for user-behavior tests. See `.env.test`, `apps/web/test/setup.ts`, `apps/web/bunfig.toml`.
+**TDD principle:** Tests come before (or alongside) implementation. Backend uses `bun test` against the `duopool_test` Postgres database (real DB, no mocks). Frontend uses `bun test` + happy-dom + React Testing Library + `@testing-library/jest-dom` for user-behavior tests, with MSW v2 from `@duopool/mocks` for network. Shared setup lives in `@duopool/test-config` with environment-scoped subpath exports (`/frontend`, `/frontend/setup`, `/backend`, `/backend/setup`, `/msw`) so frontend tests don't accidentally pull in `pg`/`drizzle-orm`. `apps/web/bunfig.toml` preloads `@duopool/test-config/frontend/setup`. See `.env.test`. Frontend test files live in `modules/<feature>/__tests__/` (not co-located).
+
+**Test infra gotchas (learned the hard way):**
+- Schema-specific test helpers belong with the schema package (`packages/database`), not in `@duopool/test-config`. Only generic, environment-level infra goes in the shared package.
+- Don't wrap `mock.module()` in a helper that lives in a different package than the test — Bun resolves the spec at the call site, so a wrapper in `@duopool/test-config` will fail to mock a module imported from `apps/web`.
 
 **Live demo TDD asset:** `packages/database/src/query/polls.castVote.test.ts` is a pre-written, currently-skipped test suite for the feature that gets implemented during `/duo.exec` on stage. The skip is runtime-guarded so `bun verify` stays green until the live demo. After implementation, all 4 cases run. See ADR-006.
 
